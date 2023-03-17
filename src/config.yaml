@@ -1,0 +1,5 @@
+batch_size: 4
+num_restarts: 10
+raw_samples: 512
+max_cholesky_size: "inf"  # Always use Cholesky
+n_candidates: 
