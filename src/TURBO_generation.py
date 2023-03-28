@@ -120,7 +120,6 @@ class GaussianProcessModel(BaseRecipePredictor):
     def __init__(self, max_cholesky_size):
         super().__init__()
         self.max_cholesky_size = max_cholesky_size
-        self.num_outputs=1
     
     def train(self, x_train, y_train):
         self.x_train = x_train
@@ -140,7 +139,7 @@ class GaussianProcessModel(BaseRecipePredictor):
             covar_module=self.covar_module, 
             likelihood=self.likelihood
         )
-        self.posterior = self.model.posterior(x_train)
+
         self.mll = ExactMarginalLogLikelihood(self.model.likelihood, self.model)
         # Do the fitting inside the Cholesky context
         with gpytorch.settings.max_cholesky_size(self.max_cholesky_size):
