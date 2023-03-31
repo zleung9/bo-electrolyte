@@ -19,7 +19,7 @@ import fmt_access.fmt_driver as fmt
 from .batch_generation import TurboState, generate_batch, update_state
 from .recipe_generator import BaseRecipeGenerator, BaseRecipePredictor
 from .utils import Parameters
-
+from .prediction_models import DNNpredictor
 
 
 
@@ -156,7 +156,7 @@ class GaussianProcessModel(BaseRecipePredictor):
     
 
 
-if __name__ == "__main__":
+def testTurbo():
     turbo = TurboRecipeGenerator()
     turbo.load_config("./src/config.yaml")
     
@@ -178,5 +178,13 @@ if __name__ == "__main__":
     model.train(x_train, y_train)
     x_next, y_next = turbo.generate_batch((x_train, y_train), model)
     print(x_next, y_next)
+    
 #     turbo.push_data((x_next, y_next))
 #     turbo.notify_slack()
+
+if __name__ == "__main__":
+#     python -m src.TURBO_generation
+
+#     testTurbo()
+    dnn = DNNpredictor.DNN()
+    dnn.train()
