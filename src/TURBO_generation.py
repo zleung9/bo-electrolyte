@@ -1,5 +1,7 @@
 
-import utils
+
+import pandas as pd
+
 import torch
 from botorch.fit import fit_gpytorch_mll
 from botorch.models import SingleTaskGP
@@ -10,11 +12,19 @@ from gpytorch.kernels import MaternKernel, ScaleKernel
 from gpytorch.likelihoods import GaussianLikelihood
 from gpytorch.mlls import ExactMarginalLogLikelihood
 
+import db_connect.connector as db
+import fmt_access.fmt_driver as fmt
+
+
 from .batch_generation import TurboState, generate_batch, update_state
 from .recipe_generator import BaseRecipeGenerator, BaseRecipePredictor
+from .utils import Parameters
+from .prediction_models import DNNpredictor
 
 
-DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+# DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+DEVICE = torch.device("cpu")
 DTYPE = torch.double
 
 
@@ -31,15 +41,15 @@ class TurboRecipeGenerator(BaseRecipeGenerator):
     def load_config(self, config_path):
         """Load configuration to an existing generator
         """
-        self.config = utils.Parameters.from_yaml(config_path)
+        self.config = Parameters.from_yaml(config_path)
         self.batch_size = self.config.batch_size
         if self.config.max_cholesky_size == "inf":
             self.max_cholesky_size = float("inf")
         self.raw_samples = self.config.raw_samples
         self.n_restarts = self.config.num_restarts
 
-    def initialize_state(self, state_path=None):
-        self._update_state(initialize=True, state_path=state_path)
+    def initialize_state(self, initialize=True, state_path=None):
+        self._update_state(initialize=initialize, state_path=state_path)
         
     def _update_state(self, initialize=False, state_path=None):
         """Update the Turbo state of the generator upon new data points. 
@@ -85,7 +95,7 @@ class TurboRecipeGenerator(BaseRecipeGenerator):
         # Create a batch
         x_next = generate_batch(
             state=self.state,
-            model=model,
+            model=model.model,
             X=x_train,
             Y=y_train,
             batch_size=batch_size,
@@ -93,6 +103,7 @@ class TurboRecipeGenerator(BaseRecipeGenerator):
             num_restarts=self.n_restarts,
             raw_samples=self.raw_samples,
             acqf=acquisition,
+            device=DEVICE
         )
         y_next = model.predict(x_next)
         
@@ -114,8 +125,8 @@ class GaussianProcessModel(BaseRecipePredictor):
         self.x_train = x_train
         self.y_train = y_train
         self.dim = x_train.shape[1]
-        likelihood = GaussianLikelihood(noise_constraint=Interval(1e-8, 1e-3))
-        covar_module = ScaleKernel(  # Use the same lengthscale prior as in the TuRBO paper
+        self.likelihood = GaussianLikelihood(noise_constraint=Interval(1e-8, 1e-3))
+        self.covar_module = ScaleKernel(  # Use the same lengthscale prior as in the TuRBO paper
             MaternKernel(
                 nu=2.5, 
                 ard_num_dims=self.dim, 
@@ -125,10 +136,11 @@ class GaussianProcessModel(BaseRecipePredictor):
         self.model = SingleTaskGP(
             self.x_train, 
             self.y_train,
-            covar_module=covar_module, 
-            likelihood=likelihood
+            covar_module=self.covar_module, 
+            likelihood=self.likelihood
         )
-        self.mll = ExactMarginalLogLikelihood(model.likelihood, model)
+
+        self.mll = ExactMarginalLogLikelihood(self.model.likelihood, self.model)
         # Do the fitting inside the Cholesky context
         with gpytorch.settings.max_cholesky_size(self.max_cholesky_size):
             # Fit the model
@@ -136,7 +148,7 @@ class GaussianProcessModel(BaseRecipePredictor):
 
     def predict(self, x_next, sample_size=100):
         # Record the difference between prediction and ground truth
-        posterior = model.posterior(x_next)
+        posterior = self.model.posterior(x_next)
         y_pred = posterior.sample(
             sample_shape=torch.Size([sample_size])
         ).mean(axis=0)
@@ -144,13 +156,35 @@ class GaussianProcessModel(BaseRecipePredictor):
     
 
 
-if __name__ == "__main__":
+def testTurbo():
     turbo = TurboRecipeGenerator()
-    turbo.load_config("./config.yaml")
-    turbo.initialize_state(initialize=True, state_path="./turbo_state.pkl")
-    x_train, y_train = turbo.pull_data()
+    turbo.load_config("./src/config.yaml")
+    
+    data = fmt.pull_data(target="Voltage",
+                         omit_lab_batches=[60, 61], only_lab_approved_chems=False,
+                         table="Liquid Master Table")
+    data = data.drop(columns=['electrolyte_id', 'generation_method', 'total_mass'])
+
+    x_train, y_train = turbo.pull_data(data)
+    
+    turbo.initialize_state(initialize=True)
+    
+
+    x_train = torch.from_numpy(x_train)
+    y_train = torch.from_numpy(y_train)
+
+    
     model = turbo.get_model()
     model.train(x_train, y_train)
     x_next, y_next = turbo.generate_batch((x_train, y_train), model)
-    turbo.push_data((x_next, y_next))
-    turbo.notify_slack()
+    print(x_next, y_next)
+    
+#     turbo.push_data((x_next, y_next))
+#     turbo.notify_slack()
+
+if __name__ == "__main__":
+#     python -m src.TURBO_generation
+
+#     testTurbo()
+    dnn = DNNpredictor.DNN()
+    dnn.train()
