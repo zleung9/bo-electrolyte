@@ -1,6 +1,7 @@
 from abc import ABC, abstractmethod
 import pandas as pd
 from .utils import Parameters
+from botorch.models.gpytorch import GPyTorchModel
 
 class BaseRecipeGenerator(ABC):
     
@@ -66,7 +67,7 @@ class BaseRecipeGenerator(ABC):
         ...
 
 
-class BaseRecipePredictor(ABC):
+class BaseRecipePredictor(GPyTorchModel, ABC):
     """ An Automat wrapper of any model that predicts/suggest the optimized 
     """
     def __init__(self):

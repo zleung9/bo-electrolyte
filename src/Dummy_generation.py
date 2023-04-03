@@ -9,24 +9,27 @@ from .recipe_generator import BaseRecipeGenerator, BaseRecipePredictor
 from .utils import Parameters
 from .data_loader import RecipeDataset
 from torch.utils.data import Dataset
+from botorch.models.model import Model, ModelList
+from botorch.models.gpytorch import GPyTorchModel
+from botorch.posteriors.gpytorch import GPyTorchPosterior
 
 # DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 DEVICE = torch.device("cpu")
 DTYPE = torch.double
 
 
-class BaseModel(ABC):
+class BaseModel(GPyTorchModel, ABC):
     """ Base model that contains Automat related interface.
     """
-    ...
+    def __init__(self):
+        ...
 
 class BaseGenerator(ABC):
     """ Base generator that contains Automat related interface.
     """
     ...
 
-
-class DummyRecipePredictor(BaseModel, nn.Module):
+class DummyRecipePredictor(BaseModel):
     """ It is an DNN model but can also interact with Automat workflow.
     """
     def __init__(self):
