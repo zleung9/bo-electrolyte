@@ -39,14 +39,11 @@ class TurboRecipeGenerator(BaseRecipeGenerator):
         self.raw_samples = None
 
     def load_config(self, config_path):
-        """Load configuration to an existing generator
+        """ Modify some of the loaded parameters.
         """
-        self.config = Parameters.from_yaml(config_path)
-        self.batch_size = self.config.batch_size
-        if self.config.max_cholesky_size == "inf":
+        super().load_config(config_path)
+        if self.max_cholesky_size == "inf":
             self.max_cholesky_size = float("inf")
-        self.raw_samples = self.config.raw_samples
-        self.n_restarts = self.config.num_restarts
 
     def initialize_state(self, initialize=True, state_path=None):
         self._update_state(initialize=initialize, state_path=state_path)

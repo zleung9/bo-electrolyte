@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 import pandas as pd
-
+from .utils import Parameters
 
 class BaseRecipeGenerator(ABC):
     
@@ -11,6 +11,12 @@ class BaseRecipeGenerator(ABC):
         self.y_next = None
         self.model = None
         
+    def load_config(self, config_path):
+        """Load parameters from a yaml file and populate to local scope.
+        """
+        config = Parameters.from_yaml(config_path)
+        self.__dict__.update(config.to_dict())
+
     @abstractmethod
     def pull_data(self, data):
         """Get `x_train` and `y_train` from the `data` source, which could be of any form.
