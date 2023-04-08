@@ -2,6 +2,12 @@ from abc import ABC, abstractmethod
 import pandas as pd
 from .utils import Parameters
 from botorch.models.gpytorch import GPyTorchModel
+from botorch.models.model import Model
+from torch import Tensor
+from gpytorch.distributions.multivariate_normal import MultivariateNormal
+from gpytorch.kernels import MaternKernel, ScaleKernel
+from gpytorch.constraints import Interval
+
 
 class BaseRecipeGenerator(ABC):
     
@@ -87,7 +93,23 @@ class BaseRecipePredictor(GPyTorchModel, ABC):
         """
         raise NotImplementedError
 
-
+    def _transform_prediction(self):
+        """
+        """
+    def posterior(self):
+        ...
+    
+    def forward(self, x: Tensor) -> MultivariateNormal:
+        if self.training:
+            x = self.transform_inputs(x)
+        mean_x = self.mean_module(x)
+        dim = x.shape[-1]
+        covar_module = ScaleKernel(  # Use the same lengthscale prior as in the TuRBO paper
+            MaternKernel(nu=2.5, ard_num_dims=dim, lengthscale_constraint=Interval(0.005, 4.0))
+        )
+        covar_x = covar_module(x)
+        return MultivariateNormal(mean_x, covar_x)
+    
 
 class DragonflyRecipeGenerator(BaseRecipeGenerator):
     def __init__(self):
