@@ -17,7 +17,7 @@ class RecipeDataset(Dataset):
     """RecipeDataset. API: torch.utils.data.Dataset"""
 
     def __init__(self, csv_file=None, project_prefix="./", target="LCE",
-                             omit_lab_batches=[60, 61], only_lab_approved_chems=False,
+                             omit_lab_batches=[60, 61], only_lab_approved_chems=True,
                              project="DOE_electrolyte", 
                              table="Liquid Master Table",
                              y_log_transform=False):
@@ -55,16 +55,6 @@ class RecipeDataset(Dataset):
         if idx and torch.is_tensor(idx):
             idx = idx.tolist()
             self.data = self.data.iloc[idx, :]
-        
-#         self.x_train = self.data.iloc[:, :-1].values
-#         self.y_train = self.data.iloc[:, [-1]].values
-#         self.dim = self.x_train.shape[1]
-
-
-#         x_train = torch.from_numpy(x_train)
-#         y_train = torch.from_numpy(y_train)
-
-        
 
         return self.data
     

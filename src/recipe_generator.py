@@ -5,9 +5,11 @@ from botorch.models.gpytorch import GPyTorchModel
 from botorch.models.model import Model
 from torch import Tensor
 from gpytorch.distributions.multivariate_normal import MultivariateNormal
-from gpytorch.kernels import MaternKernel, ScaleKernel
+from gpytorch.kernels import MaternKernel, RBFKernel, ScaleKernel
 from gpytorch.constraints import Interval
-
+from gpytorch.models import ExactGP
+from gpytorch.likelihoods import GaussianLikelihood
+from gpytorch.means import ConstantMean
 
 class BaseRecipeGenerator(ABC):
     
@@ -73,11 +75,22 @@ class BaseRecipeGenerator(ABC):
         ...
 
 
-class BaseRecipePredictor(GPyTorchModel, ABC):
+class BaseRecipePredictor(ExactGP, GPyTorchModel, ABC):
     """ An Automat wrapper of any model that predicts/suggest the optimized 
     """
-    def __init__(self):
-        ...
+    _num_outputs = 1  # to inform GPyTorchModel API
+    
+
+    def __init__(self, train_X=None, train_Y=None, **kwargs):
+        """https://botorch.org/tutorials/custom_botorch_model_in_ax"""
+        # squeeze output dim before passing train_Y to ExactGP
+        super().__init__(train_X, train_Y.squeeze(-1), GaussianLikelihood())
+        self.mean_module = ConstantMean()
+        self.covar_module = ScaleKernel(
+#             MaternKernel(nu=2.5, ard_num_dims=train_X.shape[-1], lengthscale_constraint=Interval(0.005, 4.0))
+            base_kernel=RBFKernel(ard_num_dims=train_X.shape[-1]),
+        )
+        self.to(train_X)  # make sure we're on the right device/dtype
     
     @abstractmethod
     def train(self):
@@ -96,19 +109,7 @@ class BaseRecipePredictor(GPyTorchModel, ABC):
     def _transform_prediction(self):
         """
         """
-    def posterior(self):
         ...
-    
-    def forward(self, x: Tensor) -> MultivariateNormal:
-        if self.training:
-            x = self.transform_inputs(x)
-        mean_x = self.mean_module(x)
-        dim = x.shape[-1]
-        covar_module = ScaleKernel(  # Use the same lengthscale prior as in the TuRBO paper
-            MaternKernel(nu=2.5, ard_num_dims=dim, lengthscale_constraint=Interval(0.005, 4.0))
-        )
-        covar_x = covar_module(x)
-        return MultivariateNormal(mean_x, covar_x)
     
 
 class DragonflyRecipeGenerator(BaseRecipeGenerator):
