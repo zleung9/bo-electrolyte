@@ -42,6 +42,7 @@ class TurboRecipeGenerator(BaseRecipeGenerator):
         """ Modify some of the loaded parameters.
         """
         super().load_config(config_path)
+        print(self.__dict__)
         if self.max_cholesky_size == "inf":
             self.max_cholesky_size = float("inf")
 
@@ -82,7 +83,7 @@ class TurboRecipeGenerator(BaseRecipeGenerator):
         self.n_candidates = min(5000, max(2000, 200 * self.dim))
         return self.x_train, self.y_train
     
-    def generate_batch(self, data, model, batch_size=None, acquisition="ei"):
+    def generate_batch(self, data, pred_model, batch_size=None, acquisition="ei"):
         """Use model and 
         """
         x_train, y_train = data
@@ -92,7 +93,7 @@ class TurboRecipeGenerator(BaseRecipeGenerator):
         # Create a batch
         x_next = generate_batch(
             state=self.state,
-            model=model.model,
+            model=pred_model,
             X=x_train,
             Y=y_train,
             batch_size=batch_size,
@@ -102,7 +103,7 @@ class TurboRecipeGenerator(BaseRecipeGenerator):
             acqf=acquisition,
             device=DEVICE
         )
-        y_next = model.predict(x_next)
+        y_next = pred_model.predict(x_next)
         
         self.x_next = x_next
         self.y_next = y_next
@@ -158,7 +159,7 @@ def testTurbo():
     turbo.load_config("./src/config.yaml")
     
     data = fmt.pull_data(target="Voltage",
-                         omit_lab_batches=[60, 61], only_lab_approved_chems=False,
+                         omit_lab_batches=[60, 61], only_lab_approved_chems=True,
                          table="Liquid Master Table")
     data = data.drop(columns=['electrolyte_id', 'generation_method', 'total_mass'])
 
@@ -171,17 +172,17 @@ def testTurbo():
     y_train = torch.from_numpy(y_train)
 
     
-    model = turbo.get_model()
-    model.train(x_train, y_train)
-    x_next, y_next = turbo.generate_batch((x_train, y_train), model)
+#     model = turbo.get_model()
+#     model.train(x_train, y_train)
+    dnn = DNNpredictor.DNN(train_X=x_train, train_Y=y_train)
+    x_next, y_next = turbo.generate_batch((x_train, y_train), dnn)
     print(x_next, y_next)
     
 #     turbo.push_data((x_next, y_next))
 #     turbo.notify_slack()
 
 if __name__ == "__main__":
-#     python -m src.TURBO_generation
 
-#     testTurbo()
-    dnn = DNNpredictor.DNN()
-    dnn.train()
+    testTurbo()
+#     dnn = DNNpredictor.DNN()
+#     dnn.train()

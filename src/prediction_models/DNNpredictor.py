@@ -65,8 +65,8 @@ def test_su_1d_model(input_dim):
     return model
     
 class DNN(BaseRecipePredictor):   
-    def __init__(self, **kwarg):
-        super().__init__()
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
         self.model =  None
         
     def dnn_regression(self, input_dim, batch_size=64, trainable=True, lr = 1e-3, layer=[128,256,512,1024], batch_norm_after_layer=False, **kwargs) -> keras.models.Model:
