@@ -10,8 +10,9 @@ from keras.layers.core import Dense, Dropout, Activation, Flatten
 from keras.optimizers import Adam
 from keras.callbacks import ModelCheckpoint
 from keras.models import Model
-
+from sklearn.metrics import r2_score, mean_squared_error
 from sklearn.model_selection import train_test_split
+from scipy import stats
 
 
 from ..recipe_generator import BaseRecipeGenerator, BaseRecipePredictor
@@ -145,9 +146,7 @@ class DNN(BaseRecipePredictor):
         print(y_test.shape)
         print(y_pred.shape)
 
-
-
-        return model
+        return self.model
 
 
     def predict(self, x, loadweight=None):
