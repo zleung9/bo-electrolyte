@@ -5,9 +5,9 @@ from abc import ABC
 import torch
 from torch import nn
 
-from .recipe_generator import BaseRecipeGenerator, BaseRecipePredictor
-from .utils import Parameters
-from .data_loader import RecipeDataset
+from ..search.recipe_generator import BaseRecipeGenerator, BaseRecipePredictor
+from ..utils import Parameters
+from ..utils.data_loader import RecipeDataset
 from torch.utils.data import Dataset
 from botorch.models.model import Model, ModelList
 from botorch.models.gpytorch import GPyTorchModel

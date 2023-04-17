@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 import pandas as pd
-from .utils import Parameters
+from .src.utils import Parameters
 from botorch.models.gpytorch import GPyTorchModel
 from botorch.models.model import Model
 from torch import Tensor

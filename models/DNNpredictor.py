@@ -15,8 +15,8 @@ from sklearn.model_selection import train_test_split
 from scipy import stats
 
 
-from ..recipe_generator import BaseRecipeGenerator, BaseRecipePredictor
-from ..data_loader import RecipeDataset
+from ..search.recipe_generator import BaseRecipeGenerator, BaseRecipePredictor
+from ..utils.data_loader import RecipeDataset
 
 
 def BLOCK(seq, filters):

@@ -16,10 +16,10 @@ import db_connect.connector as db
 import fmt_access.fmt_driver as fmt
 
 
-from .batch_generation import TurboState, generate_batch, update_state
-from .recipe_generator import BaseRecipeGenerator, BaseRecipePredictor
-from .utils import Parameters
-from .prediction_models import DNNpredictor
+from ..utils.batch_generation import TurboState, generate_batch, update_state
+from ..search.recipe_generator import BaseRecipeGenerator, BaseRecipePredictor
+from ..utils import Parameters
+from ..models import DNNpredictor
 
 
 
