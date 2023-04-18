@@ -52,7 +52,7 @@ class AutomatDataSet(ABC):
     
     @property
     def dataframe(self):
-        return self._df
+        return self._df.copy()
 
 
 class LiquidMasterDataSet(AutomatDataSet):
