@@ -1,0 +1,58 @@
+R2 of step forward selection
+
+Number of features: 1
+InOr 0.0006
+aC 0.0005
+aO 0.0050
+aF 0.0193
+sC 0.0033
+sO 0.0533
+sF 0.0075
+O 0.0209
+C 0.0031
+F 0.0243
+FC 0.0116
+FO 0.0290
+OC 0.0012
+
+# of features: 2
+Other selected: ['sO']
+InOr 0.0542
+aC 0.0534
+aO 0.0535
+aF 0.0580
+sC 0.0542
+sF 0.0535
+O 0.0535
+C 0.0542
+F 0.0573
+FC 0.0534
+FO 0.0571
+OC 0.0543
+
+# of features: 3
+Other selected: ['sO', 'aF']
+InOr 0.0629
+aC 0.0589
+aO 0.0593
+sC 0.0636
+sF 0.0583
+O 0.0593
+C 0.0623
+F 0.0583
+FC 0.0622
+FO 0.0589
+OC 0.0612
+
+# of features: 4
+Other selected: ['sO', 'aF', 'sC']
+InOr 0.0645
+aC 0.0636
+aO 0.0645
+sF 0.0637
+O 0.0645
+C 0.0636
+F 0.0637
+FC 0.0658
+FO 0.0638
+OC 0.0636
