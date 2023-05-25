@@ -2,8 +2,8 @@
 # /home/esteban/miniconda3/envs/torch_gen/bin/pip install .
 
 # Name                    Version                   Build  Channel
-_libgcc_mutex             0.1                        main
-_openmp_mutex             5.1                       1_gnu
+# _libgcc_mutex             0.1                        main
+# _openmp_mutex             5.1                       1_gnu
 anyio                     3.5.0           py310h06a4308_0  
 argon2-cffi               20.1.0          py310h7f8727e_1  
 asteval                   0.9.29                   pypi_0    pypi

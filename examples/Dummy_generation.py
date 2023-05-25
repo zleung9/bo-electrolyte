@@ -5,9 +5,9 @@ from abc import ABC
 import torch
 from torch import nn
 
-from ..search.recipe_generator import BaseRecipeGenerator, BaseRecipePredictor
-from ..utils import Parameters
-from ..utils.data_loader import RecipeDataset
+from btgenerate.search.recipe_generator import BaseRecipeGenerator, BaseRecipePredictor
+from btgenerate.utils.utils import Parameters
+from btgenerate.utils.data_loader import RecipeDataset
 from torch.utils.data import Dataset
 from botorch.models.model import Model, ModelList
 from botorch.models.gpytorch import GPyTorchModel
@@ -57,17 +57,17 @@ class DummyRecipeGenerator(BaseGenerator):
         return 0
     
     def generate_batch(self):
-        self.model.predict()
+        return self.model.predict()
 
 
-data = RecipeDataset()
-model = DummyRecipePredictor()
-trainer = DummyRecipeGenerator()
+if __name__ == "__main__":
+    data = RecipeDataset()
+    model = DummyRecipePredictor()
+    trainer = DummyRecipeGenerator()
 
-trainer.get_model(model)
-trainer.get_data(data)
-trainer.train()
-new_data = trainer.generae_batch()
-# measurements....
+    trainer.get_model(model)
+    trainer.get_data(data)
+    trainer.train()
+    new_data = trainer.generae_batch()
 
 

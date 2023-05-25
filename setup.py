@@ -1,9 +1,9 @@
-from setuptools import setup
+from setuptools import setup, find_packages
 
-setup(name='botorch_generation',
-      version='0.0.1',
+setup(name='btgenerate',
+      version='0.0.2',
       description="Company made package for BO generation using Botorch",
       license='See license',
-      packages=['models', "utils", "search", "database", "chemicals"],
-      zip_safe=False,
-      include_package_data=True)
+      packages=find_packages(),
+      # python_requires=">=3.8",
+)
