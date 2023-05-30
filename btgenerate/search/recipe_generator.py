@@ -65,7 +65,7 @@ class BaseRecipeGenerator(ABC):
 
         Returns
         -------
-        self.next_x : array_like
+        self.next_x : array_like must be a tensor object
             Training features of shape (N, M) where N is the number of points and M is the number of 
         features.
         """
