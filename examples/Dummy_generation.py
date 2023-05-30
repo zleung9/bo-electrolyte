@@ -1,5 +1,5 @@
-
-
+import os
+import numpy as np
 import pandas as pd
 from abc import ABC
 import torch
@@ -57,7 +57,7 @@ class DummyRecipeGenerator(BaseGenerator):
         return 0
     
     def generate_batch(self):
-        return self.model.predict()
+        return 2 * torch.ones((3,10))
 
 
 if __name__ == "__main__":
@@ -68,6 +68,5 @@ if __name__ == "__main__":
     trainer.get_model(model)
     trainer.get_data(data)
     trainer.train()
-    new_data = trainer.generae_batch()
-
-
+    new_x = trainer.generate_batch()
+    new_y = model.predict(new_x)
