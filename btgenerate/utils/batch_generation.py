@@ -121,7 +121,7 @@ def generate_batch(state, model, X, Y,  raw_samples: int,
             X_next = thompson_sampling(X_cand, num_samples=batch_size)
 
     elif acqf == "ei":
-        ei = qExpectedImprovement(model, Y.max(), maximize=True)
+        ei = qExpectedImprovement(model, Y.max())
         X_next, acq_value = optimize_acqf(
             ei,
             bounds=torch.stack([tr_lb, tr_ub]),

@@ -1,15 +1,16 @@
 from abc import ABC, abstractmethod
 import pandas as pd
+import torch
+from torch import nn
 from btgenerate.utils.utils import Parameters
-from botorch.models.gpytorch import GPyTorchModel
-from botorch.models.model import Model
-from torch import Tensor
-from gpytorch.distributions.multivariate_normal import MultivariateNormal
-from gpytorch.kernels import MaternKernel, RBFKernel, ScaleKernel
-from gpytorch.constraints import Interval
-from gpytorch.models import ExactGP
-from gpytorch.likelihoods import GaussianLikelihood
-from gpytorch.means import ConstantMean
+from botorch.acquisition import qExpectedImprovement
+from botorch.optim import optimize_acqf
+from gpytorch.mlls import ExactMarginalLogLikelihood
+from botorch.fit import fit_gpytorch_mll
+
+DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+DTYPE = torch.double
+
 
 class BaseRecipeGenerator(ABC):
     
@@ -27,7 +28,7 @@ class BaseRecipeGenerator(ABC):
         self.__dict__.update(config.to_dict())
 
     @abstractmethod
-    def pull_data(self, data):
+    def load_data(self, data):
         """Get `x_train` and `y_train` from the `data` source, which could be of any form.
         User must override this method. Must return the following: 
         train_x: array_like
@@ -38,16 +39,8 @@ class BaseRecipeGenerator(ABC):
             targets to optimize (output dimension). Usually K=1.
         """
         raise NotImplementedError
-    
-    @abstractmethod
-    def get_model(self, x=None, y=None):
-        """Train model based on the given data: inputs/outputs.
-        User must override this method. Must take `train_x` and `train_y` as input and must return
-        a `RecipePredictor` object.
-        """
-        raise NotImplementedError
-    
-    def update_model(self, x=None, y=None):
+
+    def train(self, model, train_X=None, train_Y=None):
         """Train model based on the given data: inputs/outputs.
         User must override this method. Must take `train_x` and `train_y` as input and must return
         a `RecipePredictor` object.
@@ -57,7 +50,7 @@ class BaseRecipeGenerator(ABC):
         self.model : `BaseRecipeRedictor`
         """
         raise NotImplementedError
-
+    
     @abstractmethod
     def generate_batch(self):
         """Takes in the model and existing data points, generate a new batch of data points.
@@ -75,55 +68,80 @@ class BaseRecipeGenerator(ABC):
     def push_data(self):
         """ Push the predicted value to the database.
         """
-        ...
-
-    def notify_slack(self):
-        ...
-
-
-class BaseRecipePredictor(ExactGP, GPyTorchModel, ABC):
-    """ An Automat wrapper of any model that predicts/suggest the optimized 
-    """
-    _num_outputs = 1  # to inform GPyTorchModel API
-    
-
-    def __init__(self, train_X=None, train_Y=None, **kwargs):
-        """https://botorch.org/tutorials/custom_botorch_model_in_ax"""
-        # squeeze output dim before passing train_Y to ExactGP
-        super().__init__(train_X, train_Y.squeeze(-1), GaussianLikelihood())
-        self.mean_module = ConstantMean()
-        self.covar_module = ScaleKernel(
-#             MaternKernel(nu=2.5, ard_num_dims=train_X.shape[-1], lengthscale_constraint=Interval(0.005, 4.0))
-            base_kernel=RBFKernel(ard_num_dims=train_X.shape[-1]),
-        )
-        self.to(train_X)  # make sure we're on the right device/dtype
-    
-    @abstractmethod
-    def train(self):
         raise NotImplementedError
 
-    @abstractmethod
-    def predict(self, x):
-        """A method that predicts the new points given input features.
-        Returns
-        ------- 
-        self.y_pred : array_like
-            An array of shape (N, M) where N is the number of predictions, M is the dimension.
-        """
+    def notify_slack(self):
         raise NotImplementedError
 
     def _transform_prediction(self):
         """
         """
         ...
-    
 
-class DragonflyRecipeGenerator(BaseRecipeGenerator):
+class SimplePredictor(nn.Module):
     def __init__(self):
         super().__init__()
+    def forward(self, x):
+        return torch.ones(x.shape[:-1])
 
+class SimpleGenerator(BaseRecipeGenerator):
     
-
-class RGPERecipeGenerator(BaseRecipeGenerator):
     def __init__(self):
         super().__init__()
+    
+    def load_data(self, X, y):
+        """Load data.
+        """
+        self.x_train = X
+        self.y_train = y
+        assert len(self.x_train.shape) == 2
+        self.dim = self.x_train.shape[1]
+        self.n_candidates = min(5000, max(2000, 200 * self.dim))
+        return self.x_train, self.y_train
+
+    def train(self, model, x_train=None, y_train=None):
+        model.train()
+        mll = ExactMarginalLogLikelihood(model.likelihood, model)
+        # fit_gpytorch_mll(mll)
+        pass
+        model.eval()
+        return model
+    
+    def generate_batch(
+            self, 
+            data, 
+            model, 
+            batch_size=None, 
+            num_restarts=10,
+            raw_samples=512,
+        ):
+        """Use model and 
+        """
+        X_train, y_train = data
+        if batch_size is None:
+            batch_size = self.batch_size
+        assert X_train.min() >= 0.0 and X_train.max() <= 1.0 and torch.all(torch.isfinite(y_train))
+
+        # Create a batch
+        ei = qExpectedImprovement(model, y_train.max())
+        dim = X_train.shape[1]
+        bounds = torch.stack(
+            [
+                torch.zeros(dim, dtype=DTYPE, device=DEVICE),
+                torch.ones(dim, dtype=DTYPE, device=DEVICE),
+            ]
+        )
+        X_next, _ = optimize_acqf(
+            ei,
+            bounds=bounds,
+            q=batch_size,
+            num_restarts=num_restarts,
+            raw_samples=raw_samples,
+        )
+        posterior = model.posterior(X_next)
+        y_next = posterior.sample(sample_shape=torch.Size([100])).mean(axis=0)
+        
+        self.x_next = X_next
+        self.y_next = y_next
+
+        return self.x_next, self.y_next
