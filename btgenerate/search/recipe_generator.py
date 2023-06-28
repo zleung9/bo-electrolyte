@@ -4,8 +4,9 @@ import torch
 from torch import nn
 from btgenerate.utils.utils import Parameters
 from botorch.acquisition import qExpectedImprovement
+from botorch.sampling.normal import SobolQMCNormalSampler
 from botorch.optim import optimize_acqf
-from gpytorch.mlls import ExactMarginalLogLikelihood
+from gpytorch.mlls.sum_marginal_log_likelihood import SumMarginalLogLikelihood
 from botorch.fit import fit_gpytorch_mll
 
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -82,7 +83,7 @@ class SimplePredictor(nn.Module):
     def __init__(self):
         super().__init__()
     def forward(self, x):
-        return torch.ones(x.shape[:-1])
+        return torch.zeros(x.shape[:-1])
 
 class SimpleGenerator(BaseRecipeGenerator):
     
@@ -99,31 +100,21 @@ class SimpleGenerator(BaseRecipeGenerator):
         self.n_candidates = min(5000, max(2000, 200 * self.dim))
         return self.x_train, self.y_train
 
-    def train(self, model, x_train=None, y_train=None):
+    def train_model(self, model):
+        """ Don't need to provide `x_train` and `y_train` becuase they are already used for
+        constructing the model.
+        """
         model.train()
-        mll = ExactMarginalLogLikelihood(model.likelihood, model)
-        # fit_gpytorch_mll(mll)
-        pass
+        mll = SumMarginalLogLikelihood(model.likelihood, model)
+        fit_gpytorch_mll(mll)
         model.eval()
         return model
     
-    def generate_batch(
-            self, 
-            data, 
-            model, 
-            batch_size=None, 
-            num_restarts=10,
-            raw_samples=512,
-        ):
+    def generate_batch(self, data, model, objective):
         """Use model and 
         """
+        
         X_train, y_train = data
-        if batch_size is None:
-            batch_size = self.batch_size
-        assert X_train.min() >= 0.0 and X_train.max() <= 1.0 and torch.all(torch.isfinite(y_train))
-
-        # Create a batch
-        ei = qExpectedImprovement(model, y_train.max())
         dim = X_train.shape[1]
         bounds = torch.stack(
             [
@@ -131,12 +122,23 @@ class SimpleGenerator(BaseRecipeGenerator):
                 torch.ones(dim, dtype=DTYPE, device=DEVICE),
             ]
         )
+        assert X_train.min() >= 0.0 and X_train.max() <= 1.0 and torch.all(torch.isfinite(y_train))
+
+        # define the qEI and qNEI acquisition modules using a QMC sampler
+        qmc_sampler = SobolQMCNormalSampler(sample_shape=torch.Size([self.mc_samples]))
+        # Create a batch
+        ei = qExpectedImprovement(
+            model=model, 
+            best_f=y_train.max(),
+            sampler=qmc_sampler,
+            objective=objective
+        )
         X_next, _ = optimize_acqf(
             ei,
             bounds=bounds,
-            q=batch_size,
-            num_restarts=num_restarts,
-            raw_samples=raw_samples,
+            q=self.batch_size,
+            num_restarts=self.num_restarts,
+            raw_samples=self.raw_samples,
         )
         posterior = model.posterior(X_next)
         y_next = posterior.sample(sample_shape=torch.Size([100])).mean(axis=0)

@@ -1,5 +1,5 @@
 batch_size: 4
-n_restarts: 10
+num_restarts: 10
 raw_samples: 512
+mc_samples: 1024 # mc samples for qEI sampling
 max_cholesky_size: "inf"  # Always use Cholesky
-n_candidates: 
