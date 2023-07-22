@@ -1,5 +1,6 @@
 from abc import ABC, abstractmethod
 import pandas as pd
+import numpy as np
 import torch
 from torch import nn
 from btgenerate.utils.utils import Parameters
@@ -7,6 +8,7 @@ from botorch.acquisition import qExpectedImprovement
 from botorch.sampling.normal import SobolQMCNormalSampler
 from botorch.optim import optimize_acqf
 from gpytorch.mlls.sum_marginal_log_likelihood import SumMarginalLogLikelihood
+from gpytorch.mlls import ExactMarginalLogLikelihood
 from botorch.fit import fit_gpytorch_mll
 
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -105,12 +107,19 @@ class SimpleGenerator(BaseRecipeGenerator):
         constructing the model.
         """
         model.train()
-        mll = SumMarginalLogLikelihood(model.likelihood, model)
+        # mll = SumMarginalLogLikelihood(model.likelihood, model)
+        mll = ExactMarginalLogLikelihood(model.likelihood, model)
         fit_gpytorch_mll(mll)
         model.eval()
         return model
     
-    def generate_batch(self, data, model, objective):
+    def generate_batch(
+            self, 
+            data,
+            model,
+            objective=None, 
+            equality_constraints=None
+        ):
         """Use model and 
         """
         
@@ -125,12 +134,12 @@ class SimpleGenerator(BaseRecipeGenerator):
         assert X_train.min() >= 0.0 and X_train.max() <= 1.0 and torch.all(torch.isfinite(y_train))
 
         # define the qEI and qNEI acquisition modules using a QMC sampler
-        qmc_sampler = SobolQMCNormalSampler(sample_shape=torch.Size([self.mc_samples]))
+        # qmc_sampler = SobolQMCNormalSampler(sample_shape=torch.Size([self.mc_samples]))
         # Create a batch
         ei = qExpectedImprovement(
             model=model, 
             best_f=y_train.max(),
-            sampler=qmc_sampler,
+            # sampler=qmc_sampler,
             objective=objective
         )
         X_next, _ = optimize_acqf(
@@ -139,11 +148,12 @@ class SimpleGenerator(BaseRecipeGenerator):
             q=self.batch_size,
             num_restarts=self.num_restarts,
             raw_samples=self.raw_samples,
+            equality_constraints=equality_constraints
         )
         posterior = model.posterior(X_next)
-        y_next = posterior.sample(sample_shape=torch.Size([100])).mean(axis=0)
+        y_pred = posterior.sample(sample_shape=torch.Size([100])).mean(axis=0)
         
         self.x_next = X_next
-        self.y_next = y_next
+        self.y_next = y_pred
 
         return self.x_next, self.y_next

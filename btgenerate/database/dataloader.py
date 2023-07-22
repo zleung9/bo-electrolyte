@@ -6,7 +6,6 @@ import numpy as np
 from torch.utils.data import Dataset, DataLoader
 from btgenerate.database.database import Database
 
-
 class AutomatDataSet(Dataset):
     """The base model of pandas dataframe tailored for Automat Solutions, Inc.
     """
@@ -24,9 +23,36 @@ class AutomatDataSet(Dataset):
     def __getitem__(self, idx=None):    
         return self._df.loc[idx, :]
     
+    
+class ChemicalInputDataSet(AutomatDataSet):
+    
+    def __init__(self, df:pd.DataFrame=None):
+        self.database = "mars_db"
+        self.table = "chemical_input"
+        if df is None:
+            df=Database(db=self.database).pull(table=self.table)
+        super().__init__(df=df)
+    
+    @property
+    def chemical_names(self):
+        return self._df["chemical"].tolist()
 
-class LiquidMasterDataSet(AutomatDataSet):
-    def __init__(self, df:pd.DataFrame):
+
+class ManualMaterialsDataSet(AutomatDataSet):
+    def __init__(self, df:pd.DataFrame=None):
+        self.database = "mars_db"
+        self.table = "manual_materials"
+        if df is None:
+            df=Database(db=self.database).pull(table=self.table)
+        super().__init__(df=df)
+
+
+class LiquidMasterTableDataSet(AutomatDataSet):
+    def __init__(self, df:pd.DataFrame=None):
+        self.database = "FMT"
+        self.table = "Liquid Master Table"
+        if df is None:
+            df=Database(db=self.database).pull(table=self.table)
         super().__init__(df=df)
         self.lce_name = "LCE"
         self.chemical_names = [
@@ -90,7 +116,12 @@ class LiquidMasterDataSet(AutomatDataSet):
     @property
     def lce(self):
         df_copy = self._df.copy()
-        return df_copy.loc[:, [self.lce_name]]
+        return df_copy.loc[:, self.lce_name]
+    
+    @property
+    def electrolyte_ids(self):
+        df_copy = self._df.copy()
+        return df_copy.loc[:, "Electrolyte ID"]
     
     def pull_data(self, subset="all"):
         _df = pd.concat([self.chemicals, self.lce], axis=1)
