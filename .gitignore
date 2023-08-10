@@ -24,3 +24,4 @@ var/
 *.pyc
 *.idea
 temp/
+data/
