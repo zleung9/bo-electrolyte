@@ -3,7 +3,7 @@ import os
 import torch
 import pandas as pd
 import numpy as np
-from torch.utils.data import Dataset, DataLoader
+from torch.utils.data import Dataset
 from btgenerate.database.database import Database
 
 class AutomatDataSet(Dataset):
@@ -45,26 +45,39 @@ class ManualMaterialsDataSet(AutomatDataSet):
         if df is None:
             df=Database(db=self.database).pull(table=self.table)
         super().__init__(df=df)
+        self.info_columns = [
+            'generation_id', 'electrolyte_id', 'note', 'generation_project', 'experiment',
+            'generation_method', 'total_mass(g)',
+        ]
+        self.chemical_names = df.columns[~df.columns.isin(self.info_columns)].tolist()
+    
+    @property
+    def chemicals(self):
+        df_copy = self._df.copy()
+        df_copy.fillna(0, inplace=True)
+        return df_copy.loc[:, self.chemical_names]
 
-
+    @property
+    def electrolyte_ids(self):
+        df_copy = self._df.copy()
+        return df_copy.loc[:, "electrolyte_id"]
+    
+    
 class LiquidMasterTableDataSet(AutomatDataSet):
     def __init__(self, df:pd.DataFrame=None):
         self.database = "FMT"
         self.table = "Liquid Master Table"
         if df is None:
-            df=Database(db=self.database).pull(table=self.table)
+            df = Database(db=self.database).pull(table=self.table)
         super().__init__(df=df)
         self.lce_name = "LCE"
-        self.chemical_names = [
-            'LiPF6',
-            'LiTFSI', 'LiFSI', 'LiPO2F2', 'Lithium Perchlorate', 'LiBOB', 'LiBF4',
-            'LiTf', 'L1', 'LiTDI', 'LiDFOB', 'EC', 'DEC', 'DMC', 'EMC',
-            '1,3-dioxolane', '1,2-dimethoxyethane', 'PC', 'diglyme', 'TTE',
-            'Sulfolane', 'TMP', 'BTC', 'DMDMOS', 'VC', 'FEC', 'SN', 'PS', 'DTO',
-            'TMSPi', 'BTFE', 'AN', 'TFEO', 'BTFEC', 'TMSNCS', 'LiAlO2',
-            'Montmorillonite', 'Aluminium Oxide', 'LiNO3', 'P2O5', 'Li2S', 'CsNO3',
-            'S1', 'S2', 'S3', 'C1', 'C2', 'C3', 'E1', 'DTD', 'Li2O', 'TFMB',
+        self.info_columns = [ # columns except chemicals
+            'Electrolyte ID', 'lab_batch', 'note', 'total_mass(g)', 'generation_method', 
+            'generation_project', 'experiment', 'Conductivity', 'Voltage', 'Cycles', 'LCE', 
+            'Initial Li efficiency', 'generation_id', 'Predicted Conductivity', 
+            'Predicted Voltage', 'Predicted LCE'
         ]
+        self.chemical_names = df.columns[~df.columns.isin(self.info_columns)].tolist()
         self._name_dict = {
             "1,2-dimethoxyethane": "DME",
             "1,3-dioxolane": "DOL",
@@ -109,9 +122,8 @@ class LiquidMasterTableDataSet(AutomatDataSet):
     @property
     def chemicals(self):
         df_copy = self._df.copy()
-        real_chemical_names = list(set(self.chemical_names) & set(df_copy.columns))
         df_copy.fillna(0, inplace=True)
-        return df_copy.loc[:, real_chemical_names]
+        return df_copy.loc[:, self.chemical_names]
 
     @property
     def lce(self):
@@ -139,6 +151,6 @@ class LiquidMasterTableDataSet(AutomatDataSet):
 if __name__ == "__main__":
     db = Database(db="FMT")
     df = db.pull(table="Liquid Master Table")
-    ds = LiquidMasterDataSet(df=df)
+    ds = LiquidMasterTableDataSet(df=df)
     X, y = ds.pull_data(subset="lab")
     
