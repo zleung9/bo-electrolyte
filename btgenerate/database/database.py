@@ -5,7 +5,7 @@ from abc import ABC
 
 class Database():
 
-    def __init__(self, db=None, username="info_team", pwd="Make_recipes0430"):
+    def __init__(self, db=None, username="zliang", pwd="Automat46305!"):
         self.username = username
         self.pwd = pwd
         self.engine = None
