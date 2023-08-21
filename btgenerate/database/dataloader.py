@@ -58,23 +58,11 @@ class ManualMaterialsDataSet(AutomatDataSet):
         return df_copy.loc[:, self.chemical_names]
 
     @property
-<<<<<<< Updated upstream
-=======
-    def chemicals(self):
-        df_copy = self._df.copy()
-        df_copy.fillna(0, inplace=True)
-        return df_copy.loc[:, self.chemical_names]
-
-    @property
->>>>>>> Stashed changes
     def electrolyte_ids(self):
         df_copy = self._df.copy()
         return df_copy.loc[:, "electrolyte_id"]
     
-<<<<<<< Updated upstream
     
-=======
->>>>>>> Stashed changes
 class LiquidMasterTableDataSet(AutomatDataSet):
     def __init__(self, df:pd.DataFrame=None):
         self.database = "FMT"
