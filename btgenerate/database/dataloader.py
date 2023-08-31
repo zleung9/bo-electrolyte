@@ -49,8 +49,7 @@ class RecipeDataset(Dataset):
     
     @property
     def chemicals(self):
-        df_copy = self._df.copy()
-        df_copy.fillna(0, inplace=True)
+        df_copy = self.dataframe.fillna(0)
         return df_copy.loc[:, self.chemical_names]
     
     @property
@@ -94,46 +93,53 @@ class RecipeDataset(Dataset):
         else:
             return _df.fillna(0)
 
-    def get_space(self, space, inclusive=False, reduced=True, target="LCE"):
+    def find_by_component(self, space, inclusive=False, reduced=True, target="LCE"):
         """Given a component space, select all the electrolytes that only contains chemicals in
         this space. If not `inclusive`, all components in `space` should be non-zero, otherwise 
         subspaces of `space` is also selected. 
         """
-        _df = self.dataframe
-        present_chemicals = space
-        absent_chemicals = list(set(self.chemical_names) - set(space))
+        _df = self.dataframe.fillna(0)
+        present_chemicals = [space] if type(space) is str else list(space)
+        absent_chemicals = [c for c in self.chemical_names if c not in space]
         select = (_df.loc[:, absent_chemicals] == 0).all(axis=1)
         if not inclusive: # chemicals in space should be all non-zero
             select = select & (_df.loc[:, present_chemicals] > 0).all(axis=1)
         eids = self.electrolyte_ids.loc[select].tolist()
-        return self.reduced_space(eids, target=target)
+        return self.find_by_eid(eids, target=target)
 
-    def reduced_space(self, electrolyte_ids, target="LCE"):
+    def find_by_eid(self, electrolyte_ids, show_space=False, target="LCE"):
         """Given a list of electrolyte ID's, return only their non-zero components, with LCE.
+        If `show_space` is `True`, return the the chemical names of the common space.
         """
-        electrolyte_ids = list(electrolyte_ids)
-        _df = self.dataframe
+        if type(electrolyte_ids) is str:
+            electrolyte_ids = [electrolyte_ids]
+        _df = self.dataframe.fillna(0)
         indices = _df.index[self.electrolyte_ids.isin(electrolyte_ids)]
-        chemicals = self.chemicals.loc[indices]
-        absent_chemicals = chemicals.columns[(chemicals == 0).all(axis=0)]
-        if type(target) is str:
+        all_chemicals = self.chemicals.loc[indices]
+        present_chemicals = all_chemicals.columns[(all_chemicals > 0).all(axis=0)].tolist()
+        if show_space:
+            return present_chemicals
+        absent_chemicals = all_chemicals.columns[(all_chemicals == 0).all(axis=0)].tolist()
+        if target == "all":
+            target = ["LCE", "Voltage", "Conductivity"]
+        elif type(target) is str or target is None:
             target =  [target]
         target = [t for t in target if t in self.info_columns]
         df_reduced = pd.concat(
             [
                 self.electrolyte_ids.loc[indices],
                 # Only chemicals in presence.
-                self.chemicals.loc[indices, ~chemicals.columns.isin(absent_chemicals)],
+                self.chemicals.loc[indices, ~all_chemicals.columns.isin(absent_chemicals)],
                 _df.loc[indices, target]
             ], axis=1
         )
         return df_reduced
 
-    
+
     def parallel_plot(self, electrolyte_ids, target="LCE", title=None):
         """Generate a parallel plot of non-zero components and LCE given a list of electrolyte ID's.
         """
-        _df = self.reduced_space(electrolyte_ids, target=target)
+        _df = self.find_by_eid(electrolyte_ids, target=target)
         fig, ax = plt.subplots(figsize=(_df.shape[1]-1, 4))
         pd.plotting.parallel_coordinates(
             _df, 
@@ -254,8 +260,9 @@ class LiquidMasterTableDataset(RecipeDataset):
 
 
 if __name__ == "__main__":
-    db = Database(db="FMT")
-    df = db.pull(table="Liquid Master Table")
-    ds = LiquidMasterTableDataset(df=df)
-    X, y = ds.pull_data(subset="lab")
-    
+    # run:
+    # >>> export QT_QPA_PLATFORM=offscreen 
+    ds_lmt = LiquidMasterTableDataset()
+    ds_lmt.normalize_components(inplace=True)
+    ds_lmt.map_names()
+    print(ds_lmt.find_similar("21-7-583", space_only=True))
