@@ -135,6 +135,36 @@ class RecipeDataset(Dataset):
         )
         return df_reduced
 
+    def find_similar(
+            self, 
+            electrolyte_id, 
+            tolerance=0.1, 
+            space_only=False, 
+            inclusive=False, 
+            target=None
+        ):
+        """ For a given electrolyte ID, find all electrolytes that have the similar composition
+        up to a tolerance in difference. If `space_only` is `True`, then find all electrolytes
+        that fall in the same chemical sub-space disregarding the compositional difference.
+        """
+        df_reduced = self.find_by_eid(electrolyte_id, target=None)
+        chemicals = [c for c in df_reduced.columns if c not in self.info_columns]
+        similar_space = self.find_by_component(chemicals, inclusive=inclusive, target=target)
+        if space_only:
+            return similar_space
+        similar_recipes = []
+        base = df_reduced.iloc[0]
+        for idx, row in similar_space.iterrows():
+            # caculate teh percentage difference of each chemicals 
+            percentage_diff = (row[chemicals] - base[chemicals]) / base[chemicals]
+            if (percentage_diff <= tolerance).all():
+                similar_recipes.append(similar_space.loc[[idx]])
+        if len(similar_recipes) == 0:
+            similar_recipes = df_reduced
+        else:
+            similar_recipes = pd.concat(similar_recipes, axis=0)
+        return similar_recipes
+
 
     def parallel_plot(self, electrolyte_ids, target="LCE", title=None):
         """Generate a parallel plot of non-zero components and LCE given a list of electrolyte ID's.
