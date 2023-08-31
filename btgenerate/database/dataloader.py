@@ -139,25 +139,32 @@ class RecipeDataset(Dataset):
             self, 
             electrolyte_id, 
             tolerance=0.1, 
-            space_only=False, 
-            inclusive=False, 
-            target=None
+            by_space=False, 
+            inclusive=True, 
         ):
         """ For a given electrolyte ID, find all electrolytes that have the similar composition
-        up to a tolerance in difference. If `space_only` is `True`, then find all electrolytes
+        up to a tolerance in difference. If `by_space` is `True`, then find all electrolytes
         that fall in the same chemical sub-space disregarding the compositional difference.
+        `tolerance` is a dictonary of "{chemical: tolerance}" allowing the user to specify the
+        tolerance for each chemical. If `tolearnce` is a single number, then it applies to all
+        chemicals.
         """
         df_reduced = self.find_by_eid(electrolyte_id, target=None)
-        chemicals = [c for c in df_reduced.columns if c not in self.info_columns]
-        similar_space = self.find_by_component(chemicals, inclusive=inclusive, target=target)
-        if space_only:
+        space = [c for c in df_reduced.columns if c not in self.info_columns]
+        similar_space = self.find_by_component(space, inclusive=inclusive, target=None)
+        if by_space:
             return similar_space
+        if type(tolerance) is float: # convert universal tolerance to chemical specific 
+            tolerance = {c: tolerance for c in space}
         similar_recipes = []
         base = df_reduced.iloc[0]
         for idx, row in similar_space.iterrows():
             # caculate teh percentage difference of each chemicals 
-            percentage_diff = (row[chemicals] - base[chemicals]) / base[chemicals]
-            if (percentage_diff <= tolerance).all():
+            for chemical, t in tolerance.items():
+                percentage_diff = abs(row[chemical] - base[chemical]) / base[chemical]
+                if percentage_diff > t: # all differences should be smaller than tolerance
+                    break
+            else: # if loop finished, that means the recipe is similar to base
                 similar_recipes.append(similar_space.loc[[idx]])
         if len(similar_recipes) == 0:
             similar_recipes = df_reduced
