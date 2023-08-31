@@ -93,17 +93,23 @@ class RecipeDataset(Dataset):
         else:
             return _df.fillna(0)
 
-    def find_by_component(self, space, inclusive=False, reduced=True, target="LCE"):
-        """Given a component space, select all the electrolytes that only contains chemicals in
-        this space. If not `inclusive`, all components in `space` should be non-zero, otherwise 
-        subspaces of `space` is also selected. 
+    def find_by_component(self, space, sub_space=False, inclusive=False, target="LCE"):
+        """ If `sub_space`, select all recipies that contain at least the given space, otherwise
+        the recipes that contain at most the given space.
+        If not `inclusive`, all components in `space` should be non-zero, otherwise subspaces of 
+        `space` is also selected. Only works if `sub_space` is `False`.
         """
         _df = self.dataframe.fillna(0)
         present_chemicals = [space] if type(space) is str else list(space)
         absent_chemicals = [c for c in self.chemical_names if c not in space]
-        select = (_df.loc[:, absent_chemicals] == 0).all(axis=1)
-        if not inclusive: # chemicals in space should be all non-zero
-            select = select & (_df.loc[:, present_chemicals] > 0).all(axis=1)
+        select1 = (_df.loc[:, absent_chemicals] == 0).all(axis=1)
+        select2 = (_df.loc[:, present_chemicals] > 0).all(axis=1)
+        if sub_space: # recipes that contain at least the given space
+            select = select2
+        elif inclusive: # recipes that contain at most the given space
+            select = select1
+        else: # recipes that contain at most the given space (all should be non-zero)
+            select = select2
         eids = self.electrolyte_ids.loc[select].tolist()
         return self.find_by_eid(eids, target=target)
 
